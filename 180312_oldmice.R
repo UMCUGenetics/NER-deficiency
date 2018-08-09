@@ -104,12 +104,12 @@ cancer_signatures = cancer_signatures[order(cancer_signatures[,1]),]
 cancer_signatures = as.matrix(cancer_signatures[,4:33])
 
 #4 Refit
-fit_res_old = fit_to_signatures(mut_matrix_old, cancer_signatures[,c(1,8,10,14,18,29,30)])
-fit_res_new = fit_to_signatures(mut_matrix, cancer_signatures[,c(1,8,10,14,18,29,30)])
+fit_res_old = fit_to_signatures(mut_matrix_old, cancer_signatures)
+fit_res_new = fit_to_signatures(mut_matrix, cancer_signatures)
 
 #5 Determine Sig 8 contribution
-sig8_old <- data.frame(t(t(fit_res_old$contribution[2,])),c(98,98,98,116,116,116))
-sig8_new <- data.frame(t(t(fit_res_new$contribution[2,])),rep(16,11))
+sig8_old <- data.frame(t(t(fit_res_old$contribution[8,])),c(98,98,98,116,116,116))
+sig8_new <- data.frame(t(t(fit_res_new$contribution[8,])),rep(16,11))
 colnames(sig8_old) <- c("mutations","age")
 colnames(sig8_new) <- c("mutations","age")
 sig8_old$perweek <- as.numeric(sig8_old[,1])/as.numeric(sig8_old[,2])
@@ -121,7 +121,7 @@ sig8plot_old <- ggplot(sig8_rate_df, aes(x = age,y=mutations)) +
   geom_point(shape=1) +
 #  geom_smooth(method=lm) + 
   xlim(0,150) +
-  ylim(0,400)+
+  ylim(0,200)+
   xlab("Age (weeks)") +
   ylab("Signature 8 mutations") +
   ggtitle("Number of Signature 8 mutations\naccumulated in ASCs\nof mouse small intestine") +
