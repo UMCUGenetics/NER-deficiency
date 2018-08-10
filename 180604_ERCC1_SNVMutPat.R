@@ -432,15 +432,6 @@ p_chi_si_6type <- chisq.test(si.spectrum)$p.value
 #3 Adjust for multiple testing
 p.adjust(c(p_chi_liver_6type,p_chi_si_6type), method = "fdr") #0.040948305 0.004717594
 
-#4 Generate data frames for statistical testing: 96 types
-#liver.profile <- data.frame(wtliv = rowSums(mut_matrix[,c(7,8,10)]), mutliv = rowSums(mut_matrix[,c(1,3,5)]))
-#si.profile <- data.frame(wtsi = rowSums(mut_matrix[,c(9,11)]), mutsi = rowSums(mut_matrix[,c(2,4,6)]))
-
-#5 chi square 96 types
-#cs <- chisq.test(data.frame(liver.profile,si.profile))
-#chisq.test(liver.profile)
-#chisq.test(si.profile)
-
 
 
 
@@ -482,14 +473,6 @@ cossimplot_permouse <- plot_cosine_heatmap(cosine_similarity_permouse,cluster_ro
 #ggsave(paste(outdir,"cosinesimilarity_mutationspectra.pdf",sep=""), plot = cossimplot, width = 6, height = 6)
 #ggsave(paste(outdir,"cosinesimilarity_mutationspectra_permouse.pdf",sep=""), plot = cossimplot_permouse, width = 6, height = 6)
 
-
-
-diff.collapsed_mutmatrix <- data.frame(liver = collapsed_mutmatrix_combined$`Ercc1(-/D) Liver`-collapsed_mutmatrix_combined$`WT Liver`,
-                                       si = collapsed_mutmatrix_combined$`Ercc1(-/D) Small intestine`-collapsed_mutmatrix_combined$`WT Small intestine`)
-rownames(diff.collapsed_mutmatrix) <- rownames(collapsed_mutmatrix_combined)
-diff.collapsed_mutmatrix[which(diff.collapsed_mutmatrix$liver < 0),]$liver <- rep(0,nrow(diff.collapsed_mutmatrix[which(diff.collapsed_mutmatrix$liver < 0),]))
-diff.collapsed_mutmatrix[which(diff.collapsed_mutmatrix$si < 0),]$si <- rep(0,nrow(diff.collapsed_mutmatrix[which(diff.collapsed_mutmatrix$si < 0),]))
-plot_cosine_heatmap(cos_sim_matrix(diff.collapsed_mutmatrix,cancer_signatures), plot_values = TRUE)
 
 
 
@@ -576,16 +559,17 @@ cossimcosmicplot.all.collapsed <- plot_cosine_heatmap(cos_sim_matrix(reconstruct
 
 
 
-#test.sigs <- data.frame(fit_res_cancersigs.collapsed$contribution)
+
+# ---- Define number of sigs for refitting ----
+
+#1 Generate df
 test.sigs <- data.frame(fit_res_collapsed_combined$contribution)
-
 test.sigs$sum <- rowSums(test.sigs)
-
 test.sigs$rank <- NA
 test.sigs$sig <- NA
 
+#2 Rank signatures, based on contribution
 rank.sigs <- order(-test.sigs$sum)
-
 for(i in rank.sigs) {
   sig <- rank.sigs[i]
   test.sigs[sig,]$sig <- as.numeric(sig)
@@ -594,9 +578,9 @@ for(i in rank.sigs) {
   test.sigs[sig,]$rank <- rank
   remove(sig,rank)
 }
-
 test.sigs <- test.sigs[order(-test.sigs$sum),]
 
+#3 Generate new empty df
 df.sigs.test <- data.frame(n.sigs = NA,
                            wt.liver = NA,
                            mut.liver = NA,
@@ -604,6 +588,8 @@ df.sigs.test <- data.frame(n.sigs = NA,
                            mut.si = NA,
                            mean = NA)
 
+#4 Calculate how much of the original profile is reconstructed by the refitted data
+# First 2 sigs, then 3, etc.
 for(i in 2:nrow(test.sigs)) {
   sigs.to.test <- test.sigs[1:i,]$sig
   cancer.sigs <- cancer_signatures[,sigs.to.test]
@@ -616,11 +602,10 @@ for(i in 2:nrow(test.sigs)) {
   df.sigs.test <- rbind(df.sigs.test,c(i,wt.liver,mut.liver,wt.si,mut.si, mean.all))
   remove(sigs.to.test,cancer.sigs,wt.liver,mut.liver,wt.si,mut.si, mean.all)
 }
-
 df.sigs.test <- df.sigs.test[-1,]
 
+#5 Plot
 df.sigs.test.forplot <- melt(df.sigs.test[,-6], id.vars = "n.sigs")
-
 plot.sigs <- ggplot(df.sigs.test.forplot, aes(x=n.sigs,y=value,fill= variable)) +
   geom_bar(stat = "identity", position = position_dodge())+ 
   ggtitle("Collapsed & adjusted for n mouse") +
@@ -629,10 +614,7 @@ plot.sigs <- ggplot(df.sigs.test.forplot, aes(x=n.sigs,y=value,fill= variable)) 
   coord_cartesian(ylim=c(0.8, 1)) +
   theme_bw()
 #ggsave(paste(outdir,"nsigs_collapsed_adjustedforn.pdf",sep=""),plot = plot.sigs, width = 12, height = 4)
-
-
-
-
+# 10 signatures! After that, the reconstructed profiles do not improve further
 
 
 
@@ -652,7 +634,7 @@ fit_res_cancersigs_impt_sum <- fit_to_signatures(collapsed_mutmatrix,cancer_sign
 #3A3 Per type, corrected for number of mice in each group
 fit_res_collapsed_combined_impt <- fit_to_signatures(collapsed_mutmatrix_combined,cancer_signatures[,impt.sigs])
 #3B Plot refit (per type, corrected for number of mice in each group)
-contributioncosmicplot.important <- plot_cosine_heatmap(collapsed_mutmatrix.fit_rel.impt,cluster_rows = F, plot_values = T)
+contributioncosmicplot.important <- plot_cosine_heatmap(collapsed_mutmatrix.fit_rel[,impt.sigs],cluster_rows = F, plot_values = T)
 #3C Save plot
 #ggsave(paste(outdir,"extra/refit_important.pdf",sep=""), plot = contributioncosmicplot.important, width = 6, height = 4)
 
@@ -661,7 +643,6 @@ abscontribution_collapsed_combined <- plot_contribution(fit_res_collapsed_combin
 relcontribution_collapsed_combined <- plot_contribution(fit_res_collapsed_combined_impt$contribution, coord_flip = F, signatures = cancer_signatures[,impt.sigs], mode = "relative")
 #ggsave(paste(outdir,"refit_importantcosmic.pdf",sep=""), plot = abscontribution_collapsed_combined,width = 4, height = 4)
 #ggsave(paste(outdir,"refit_importantcosmic_relative.pdf",sep=""), plot = relcontribution_collapsed_combined,width = 4, height = 4)
-
 
 #5 Cosine similarity of reconstructed of refitted to original
 #5A reconstructed vs prior to reconstructing (per mouse, important sigs)
